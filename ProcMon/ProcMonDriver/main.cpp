@@ -1,7 +1,8 @@
+#include <ntddk.h>
+
 #include "config.h"
 #include "definitions.h"
-
-#include <ntddk.h>
+#include "auto_lock.h"
 
 void ProcMonUnload(PDRIVER_OBJECT);
 
@@ -10,8 +11,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP);
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 
-const UNICODE_STRING DEVICE_NAME = RTL_CONSTANT_STRING(L"\\Device\\ProcMon");
-const UNICODE_STRING SYMBOLIC_LINK = RTL_CONSTANT_STRING(L"\\??\\ProcMon");
+Globals globals;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 {
@@ -26,7 +26,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 	auto status = ::IoCreateDevice(
 		driver_object,
 		0,
-		const_cast<UNICODE_STRING*>(&DEVICE_NAME),
+		const_cast<UNICODE_STRING*>(&config::kDeviceName),
 		FILE_DEVICE_UNKNOWN,
 		0,
 		FALSE,
@@ -40,8 +40,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 	}
 
 	status = ::IoCreateSymbolicLink(
-		const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK),
-		const_cast<UNICODE_STRING*>(&DEVICE_NAME)
+		const_cast<UNICODE_STRING*>(&config::kSymbolicLink),
+		const_cast<UNICODE_STRING*>(&config::kDeviceName)
 	);
 
 	if (!NT_SUCCESS(status))
@@ -56,11 +56,14 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 	if (!NT_SUCCESS(status))
 	{
 		::IoDeleteDevice(device_object);
-		::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK));
+		::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&config::kSymbolicLink));
 
 		KdPrint(("[-] Failed to set a process notify routine.\n"));
 		return status;
 	}
+
+	InitializeListHead(&globals.blocked_images_list_head);
+	globals.blocked_images_list_mutex.Init();
 
 	KdPrint(("[+] Loaded ProcMon successfully.\n"));
 	return STATUS_SUCCESS;
@@ -68,7 +71,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 void ProcMonUnload(PDRIVER_OBJECT driver_object)
 {
-	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK));
+	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&config::kSymbolicLink));
 	::IoDeleteDevice(driver_object->DeviceObject);
 	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
 
