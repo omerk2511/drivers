@@ -73,7 +73,16 @@ void ProcMonUnload(PDRIVER_OBJECT driver_object)
 {
 	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&config::kSymbolicLink));
 	::IoDeleteDevice(driver_object->DeviceObject);
+
 	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
+
+	while (!IsListEmpty(&globals.blocked_images_list_head))
+	{
+		auto entry = RemoveTailList(&globals.blocked_images_list_head);
+		BlockedImage* blocked_image = CONTAINING_RECORD(entry, BlockedImage, entry);
+
+		ExFreePool(blocked_image);
+	}
 
 	KdPrint(("[+] Unloaded ProcMon successfully.\n"));
 }
@@ -100,13 +109,13 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 	{
 	case IOCTL_PROCMON_BLOCK_EXECUTABLE:
 	{
+		AutoLock<FastMutex> lock(globals.blocked_images_list_mutex);
+
 		auto length = static_cast<unsigned short>(stack->Parameters.DeviceIoControl.InputBufferLength);
-		auto buffer = stack->Parameters.DeviceIoControl.Type3InputBuffer;
+		auto buffer = irp->AssociatedIrp.SystemBuffer;
 
 		if (length != 0 && buffer != nullptr)
 		{
-			// validate buffer
-
 			auto blocked_image = static_cast<BlockedImage*>(
 				::ExAllocatePoolWithTag(
 					PagedPool,
@@ -149,6 +158,8 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 {
 	if (create_info)
 	{
+		AutoLock<FastMutex> lock(globals.blocked_images_list_mutex);
+
 		LIST_ENTRY* head = &globals.blocked_images_list_head;
 		LIST_ENTRY* current = head->Flink;
 
