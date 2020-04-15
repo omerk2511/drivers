@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ntddk.h>
-
 #define PROCMON_DEVICE 0x8000
 
 #define IOCTL_PROCMON_BLOCK_EXECUTABLE CTL_CODE( \
@@ -9,8 +7,10 @@
 
 namespace config
 {
-	const UNICODE_STRING kDeviceName = RTL_CONSTANT_STRING(L"\\Device\\ProcMon");
-	const UNICODE_STRING kSymbolicLink = RTL_CONSTANT_STRING(L"\\??\\ProcMon");
+	const wchar_t* const kDeviceName = L"\\Device\\ProcMon";
+	const wchar_t* const kSymbolicLink = L"\\??\\ProcMon";
 
 	const ULONG kDriverTag = 0xdeadbeef;
+
+	const wchar_t* const kUserModeDeviceName = L"\\\\.\\ProcMon";
 }

@@ -23,10 +23,13 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 	PDEVICE_OBJECT device_object;
 
+	UNICODE_STRING device_name;
+	::RtlInitUnicodeString(&device_name, config::kDeviceName);
+
 	auto status = ::IoCreateDevice(
 		driver_object,
 		0,
-		const_cast<UNICODE_STRING*>(&config::kDeviceName),
+		&device_name,
 		FILE_DEVICE_UNKNOWN,
 		0,
 		FALSE,
@@ -39,10 +42,10 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		return status;
 	}
 
-	status = ::IoCreateSymbolicLink(
-		const_cast<UNICODE_STRING*>(&config::kSymbolicLink),
-		const_cast<UNICODE_STRING*>(&config::kDeviceName)
-	);
+	UNICODE_STRING symbolic_link;
+	::RtlInitUnicodeString(&symbolic_link, config::kSymbolicLink);
+
+	status = ::IoCreateSymbolicLink(&symbolic_link,	&device_name);
 
 	if (!NT_SUCCESS(status))
 	{
@@ -56,7 +59,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 	if (!NT_SUCCESS(status))
 	{
 		::IoDeleteDevice(device_object);
-		::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&config::kSymbolicLink));
+		::IoDeleteSymbolicLink(&symbolic_link);
 
 		KdPrint(("[-] Failed to set a process notify routine.\n"));
 		return status;
@@ -71,7 +74,10 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 void ProcMonUnload(PDRIVER_OBJECT driver_object)
 {
-	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&config::kSymbolicLink));
+	UNICODE_STRING symbolic_link;
+	::RtlInitUnicodeString(&symbolic_link, config::kSymbolicLink);
+
+	::IoDeleteSymbolicLink(&symbolic_link);
 	::IoDeleteDevice(driver_object->DeviceObject);
 
 	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
@@ -135,7 +141,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 			::InsertTailList(&globals.blocked_images_list_head, &blocked_image->entry);
 
-			KdPrint(("[+] Add the %S image to the blocked images list.\n", blocked_image->image_name));
+			KdPrint(("[+] Added the %S image to the blocked images list.\n", blocked_image->image_name));
 		}
 
 		break;
@@ -156,6 +162,8 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
 {
+	UNREFERENCED_PARAMETER(process_id);
+
 	if (create_info)
 	{
 		AutoLock<FastMutex> lock(globals.blocked_images_list_mutex);
@@ -169,16 +177,15 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 		{
 			BlockedImage* blocked_image = CONTAINING_RECORD(current, BlockedImage, entry);
 
-			UNICODE_STRING blocked_image_name;
-			::RtlInitUnicodeString(&blocked_image_name, blocked_image->image_name);
-
-			bool equal = ::RtlCompareUnicodeString(
-				create_info->ImageFileName,
-				&blocked_image_name,
+			long equal = ::RtlCompareUnicodeStrings(
+				blocked_image->image_name,
+				blocked_image->image_name_length,
+				create_info->ImageFileName->Buffer,
+				create_info->ImageFileName->Length,
 				false
 			);
 
-			if (equal)
+			if (equal == 0)
 			{
 				should_be_blocked = true;
 				break;
@@ -189,7 +196,7 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 
 		if (should_be_blocked)
 		{
-			KdPrint(("[*] Blocking process %d with image %Z from being created.\n", process_id, create_info->ImageFileName));
+			KdPrint(("[*] Blocking process %d with image %s from being created.\n", process_id, create_info->ImageFileName->Buffer));
 			create_info->CreationStatus = STATUS_ACCESS_DENIED;
 		}
 	}
