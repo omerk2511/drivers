@@ -1,4 +1,5 @@
 #include "config.h"
+#include "definitions.h"
 
 #include <ntddk.h>
 
@@ -6,6 +7,8 @@ void ProcMonUnload(PDRIVER_OBJECT);
 
 NTSTATUS ProcMonCreateClose(PDEVICE_OBJECT, PIRP);
 NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP);
+
+void ProcMonProcessNotify(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 
 const UNICODE_STRING DEVICE_NAME = RTL_CONSTANT_STRING(L"\\Device\\ProcMon");
 const UNICODE_STRING SYMBOLIC_LINK = RTL_CONSTANT_STRING(L"\\??\\ProcMon");
@@ -48,6 +51,18 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		return status;
 	}
 
+	status = ::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, FALSE);
+
+	if (!NT_SUCCESS(status))
+	{
+		::IoDeleteDevice(device_object);
+		::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK));
+
+		KdPrint(("[-] Failed to set a process notify routine.\n"));
+		return status;
+	}
+
+	KdPrint(("[+] Loaded ProcMon successfully.\n"));
 	return STATUS_SUCCESS;
 }
 
@@ -55,6 +70,9 @@ void ProcMonUnload(PDRIVER_OBJECT driver_object)
 {
 	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK));
 	::IoDeleteDevice(driver_object->DeviceObject);
+	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
+
+	KdPrint(("[+] Unloaded ProcMon successfully.\n"));
 }
 
 NTSTATUS ProcMonCreateClose(PDEVICE_OBJECT, PIRP irp)
@@ -93,4 +111,12 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 	::IoCompleteRequest(irp, IO_NO_INCREMENT);
 
 	return status;
+}
+
+void ProcMonProcessNotify(PEPROCESS process, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
+{
+	if (create_info)
+	{
+		
+	}
 }
