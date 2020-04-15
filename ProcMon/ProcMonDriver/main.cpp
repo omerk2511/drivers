@@ -55,3 +55,13 @@ void ProcMonUnload(PDRIVER_OBJECT driver_object)
 	::IoDeleteSymbolicLink(const_cast<UNICODE_STRING*>(&SYMBOLIC_LINK));
 	::IoDeleteDevice(driver_object->DeviceObject);
 }
+
+NTSTATUS ProcMonCreateClose(PDEVICE_OBJECT, PIRP irp)
+{
+	irp->IoStatus.Status = STATUS_SUCCESS;
+	irp->IoStatus.Information = 0;
+
+	::IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+	return STATUS_SUCCESS;
+}
