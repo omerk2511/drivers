@@ -11,4 +11,6 @@ namespace config
 {
 	const UNICODE_STRING kDeviceName = RTL_CONSTANT_STRING(L"\\Device\\ProcMon");
 	const UNICODE_STRING kSymbolicLink = RTL_CONSTANT_STRING(L"\\??\\ProcMon");
+
+	const ULONG kDriverTag = 0xdeadbeef;
 }
