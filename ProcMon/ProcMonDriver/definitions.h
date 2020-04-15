@@ -2,10 +2,12 @@
 
 #include <ntddk.h>
 
+#include "fast_mutex.h"
+
 struct Globals
 {
 	LIST_ENTRY blocked_images_list_head;
-	FAST_MUTEX blocked_images_list_mutex;
+	FastMutex blocked_images_list_mutex;
 };
 
 struct BlockedImage
