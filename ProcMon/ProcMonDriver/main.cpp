@@ -1,5 +1,6 @@
-#include <ntddk.h>
 #include "config.h"
+
+#include <ntddk.h>
 
 void ProcMonUnload(PDRIVER_OBJECT);
 
@@ -64,4 +65,32 @@ NTSTATUS ProcMonCreateClose(PDEVICE_OBJECT, PIRP irp)
 	::IoCompleteRequest(irp, IO_NO_INCREMENT);
 
 	return STATUS_SUCCESS;
+}
+
+NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
+{
+	auto stack = ::IoGetCurrentIrpStackLocation(irp);
+	auto ioctl = stack->Parameters.DeviceIoControl.IoControlCode;
+
+	irp->IoStatus.Information = 0;
+	auto status = STATUS_SUCCESS;
+
+	switch (ioctl)
+	{
+	case IOCTL_PROCMON_BLOCK_EXECUTABLE:
+	{
+		break;
+	}
+
+	default:
+	{
+		status = STATUS_INVALID_DEVICE_REQUEST;
+		break;
+	}
+	}
+
+	irp->IoStatus.Status = status;
+	::IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+	return status;
 }
