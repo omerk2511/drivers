@@ -115,7 +115,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 	{
 	case IOCTL_PROCMON_BLOCK_EXECUTABLE:
 	{
-		AutoLock<FastMutex> lock(globals.blocked_images_list_mutex);
+		AutoLock lock(globals.blocked_images_list_mutex);
 
 		auto length = static_cast<unsigned short>(stack->Parameters.DeviceIoControl.InputBufferLength);
 		auto buffer = irp->AssociatedIrp.SystemBuffer;
@@ -125,7 +125,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 			auto blocked_image = static_cast<BlockedImage*>(
 				::ExAllocatePoolWithTag(
 					PagedPool,
-					sizeof(BlockedImage) + length,
+					sizeof(BlockedImage) + length + sizeof(wchar_t),
 					config::kDriverTag
 				)
 			);
@@ -137,11 +137,13 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 			}
 
 			blocked_image->image_name_length = length;
-			memcpy(blocked_image->image_name, buffer, length);
+
+			::memcpy(blocked_image->image_name, buffer, length);
+			blocked_image->image_name[length / 2] = 0;
 
 			::InsertTailList(&globals.blocked_images_list_head, &blocked_image->entry);
 
-			KdPrint(("[+] Added the %S image to the blocked images list.\n", blocked_image->image_name));
+			KdPrint(("[+] Added the %ws image to the blocked images list.\n", blocked_image->image_name));
 		}
 
 		break;
@@ -164,9 +166,9 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 {
 	UNREFERENCED_PARAMETER(process_id);
 
-	if (create_info)
+	if (create_info && create_info->FileOpenNameAvailable)
 	{
-		AutoLock<FastMutex> lock(globals.blocked_images_list_mutex);
+		AutoLock lock(globals.blocked_images_list_mutex);
 
 		LIST_ENTRY* head = &globals.blocked_images_list_head;
 		LIST_ENTRY* current = head->Flink;
@@ -177,11 +179,12 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 		{
 			BlockedImage* blocked_image = CONTAINING_RECORD(current, BlockedImage, entry);
 
-			long equal = ::RtlCompareUnicodeStrings(
-				blocked_image->image_name,
-				blocked_image->image_name_length,
-				create_info->ImageFileName->Buffer,
-				create_info->ImageFileName->Length,
+			UNICODE_STRING blocked_image_name;
+			::RtlInitUnicodeString(&blocked_image_name, blocked_image->image_name);
+
+			long equal = ::RtlCompareUnicodeString(
+				&blocked_image_name,
+				create_info->ImageFileName,
 				false
 			);
 
@@ -196,7 +199,7 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 
 		if (should_be_blocked)
 		{
-			KdPrint(("[*] Blocking process %d with image %s from being created.\n", process_id, create_info->ImageFileName->Buffer));
+			KdPrint(("[*] Blocking process %d with image %wZ from being created.\n", process_id, create_info->ImageFileName));
 			create_info->CreationStatus = STATUS_ACCESS_DENIED;
 		}
 	}
