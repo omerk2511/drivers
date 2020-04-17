@@ -3,6 +3,7 @@
 #include "config.h"
 #include "definitions.h"
 #include "auto_lock.h"
+#include "irp_handler.h"
 
 void ProcMonUnload(PDRIVER_OBJECT);
 
@@ -95,21 +96,16 @@ void ProcMonUnload(PDRIVER_OBJECT driver_object)
 
 NTSTATUS ProcMonCreateClose(PDEVICE_OBJECT, PIRP irp)
 {
-	irp->IoStatus.Status = STATUS_SUCCESS;
-	irp->IoStatus.Information = 0;
-
-	::IoCompleteRequest(irp, IO_NO_INCREMENT);
-
-	return STATUS_SUCCESS;
+	IrpHandler irp_handler(irp);
+	return irp_handler.get_status();
 }
 
 NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 {
-	auto stack = ::IoGetCurrentIrpStackLocation(irp);
-	auto ioctl = stack->Parameters.DeviceIoControl.IoControlCode;
+	IrpHandler irp_handler(irp);
 
-	irp->IoStatus.Information = 0;
-	auto status = STATUS_SUCCESS;
+	auto stack = irp_handler.get_stack_location();
+	auto ioctl = stack->Parameters.DeviceIoControl.IoControlCode;
 
 	switch (ioctl)
 	{
@@ -118,7 +114,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 		AutoLock lock(globals.blocked_images_list_mutex);
 
 		auto length = static_cast<unsigned short>(stack->Parameters.DeviceIoControl.InputBufferLength);
-		auto buffer = irp->AssociatedIrp.SystemBuffer;
+		auto buffer = irp_handler->AssociatedIrp.SystemBuffer;
 
 		if (length != 0 && buffer != nullptr)
 		{
@@ -132,7 +128,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 			if (!blocked_image)
 			{
-				status = STATUS_INSUFFICIENT_RESOURCES;
+				irp_handler.set_status(STATUS_INSUFFICIENT_RESOURCES);
 				break;
 			}
 
@@ -152,15 +148,12 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 	default:
 	{
-		status = STATUS_INVALID_DEVICE_REQUEST;
+		irp_handler.set_status(STATUS_INVALID_DEVICE_REQUEST);
 		break;
 	}
 	}
 
-	irp->IoStatus.Status = status;
-	::IoCompleteRequest(irp, IO_NO_INCREMENT);
-
-	return status;
+	return irp_handler.get_status();
 }
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
