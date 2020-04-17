@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <config.h>
+#include "device.h"
 
 int main(int argc, char* argv[])
 {
@@ -12,69 +13,54 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	HANDLE device_handle = ::CreateFile(
-		config::kUserModeDeviceName,
-		GENERIC_ALL,
-		0,
-		nullptr,
-		OPEN_EXISTING,
-		0,
-		nullptr
-	);
-
-	if (device_handle == INVALID_HANDLE_VALUE)
+	try
 	{
-		std::cout << "[-] Unable to open device." << std::endl;
-		return 1;
-	}
+		Device device(config::kUserModeDeviceName);
 
-	std::string image_name(argv[2]);
-	std::wstring u_image_name(image_name.begin(), image_name.end());
+		std::string image_name(argv[2]);
+		std::wstring u_image_name(image_name.begin(), image_name.end());
 
-	if (std::string(argv[1]) == "-b")
-	{
-		bool succeeded = ::DeviceIoControl(
-			device_handle,
-			IOCTL_PROCMON_BLOCK_IMAGE,
-			static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
-			static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
-			nullptr,
-			0,
-			nullptr,
-			nullptr
-		);
-
-		if (!succeeded)
+		if (std::string(argv[1]) == "-b")
 		{
-			std::cout << "[-] Unable to add the image to the blocked images list." << std::endl;
-			return 1;
+			bool succeeded = device.ioctl(
+				IOCTL_PROCMON_BLOCK_IMAGE,
+				static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
+				static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
+				nullptr,
+				0
+			);
+
+			if (!succeeded)
+			{
+				std::cout << "[-] Unable to add the image to the blocked images list." << std::endl;
+				return 1;
+			}
+
+			std::cout << "[+] Added image " << argv[2] << " to the blocked images list." << std::endl;
 		}
-
-		std::cout << "[+] Added image " << argv[2] << " to the blocked images list." << std::endl;
-	}
-	else
-	{
-		bool succeeded = ::DeviceIoControl(
-			device_handle,
-			IOCTL_PROCMON_UNBLOCK_IMAGE,
-			static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
-			static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
-			nullptr,
-			0,
-			nullptr,
-			nullptr
-		);
-
-		if (!succeeded)
+		else
 		{
-			std::cout << "[-] Unable to remove the image from the blocked images list." << std::endl;
-			return 1;
+			bool succeeded = device.ioctl(
+				IOCTL_PROCMON_UNBLOCK_IMAGE,
+				static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
+				static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
+				nullptr,
+				0
+			);
+
+			if (!succeeded)
+			{
+				std::cout << "[-] Unable to remove the image from the blocked images list." << std::endl;
+				return 1;
+			}
+
+			std::cout << "[+] Removed image " << argv[2] << " from the blocked images list." << std::endl;
 		}
-
-		std::cout << "[+] Removed image " << argv[2] << " from the blocked images list." << std::endl;
 	}
-
-	::CloseHandle(device_handle);
+	catch(std::exception& e)
+	{
+		std::cout << "[-] " << e.what() << std::endl;
+	}
 
 	return 0;
 }
