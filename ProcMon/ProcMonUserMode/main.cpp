@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 
 	bool succeeded = ::DeviceIoControl(
 		device_handle,
-		IOCTL_PROCMON_BLOCK_EXECUTABLE,
+		IOCTL_PROCMON_BLOCK_IMAGE,
 		static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
 		static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
 		nullptr,
