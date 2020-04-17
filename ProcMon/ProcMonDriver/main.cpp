@@ -125,7 +125,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 			auto blocked_image = static_cast<BlockedImage*>(
 				::ExAllocatePoolWithTag(
 					PagedPool,
-					sizeof(BlockedImage) + length + sizeof(wchar_t),
+					sizeof(BlockedImage) + length + sizeof(wchar_t) * 5,
 					config::kDriverTag
 				)
 			);
@@ -138,8 +138,9 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 			blocked_image->image_name_length = length;
 
-			::memcpy(blocked_image->image_name, buffer, length);
-			blocked_image->image_name[length / 2] = 0;
+			::memcpy(blocked_image->image_name, L"\\??\\", 8);
+			::memcpy(blocked_image->image_name + 4, buffer, length);
+			blocked_image->image_name[length / 2 + 4] = 0;
 
 			::InsertTailList(&globals.blocked_images_list_head, &blocked_image->entry);
 
