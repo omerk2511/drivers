@@ -16,7 +16,7 @@ public:
 	bool Add(wchar_t name[], unsigned short length);
 	void Remove(PUNICODE_STRING name);
 
-	bool IsInList(PUNICODE_STRING name);
+	bool IsInList(PUNICODE_STRING name) const;
 
 private:
 	LIST_ENTRY head_;

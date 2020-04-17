@@ -79,7 +79,7 @@ void BlockedImagesList::Remove(PUNICODE_STRING name)
 	}
 }
 
-bool BlockedImagesList::IsInList(PUNICODE_STRING name)
+bool BlockedImagesList::IsInList(PUNICODE_STRING name) const
 {
 	AutoLock lock(mutex_);
 

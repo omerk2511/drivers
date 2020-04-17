@@ -133,7 +133,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
 {
-	UNREFERENCED_PARAMETER(process_id); // TODO: check if necessary
+	UNREFERENCED_PARAMETER(process_id);
 
 	if (create_info && create_info->FileOpenNameAvailable)
 	{
