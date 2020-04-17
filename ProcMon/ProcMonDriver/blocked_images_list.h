@@ -13,10 +13,10 @@ public:
 	BlockedImagesList();
 	~BlockedImagesList();
 
-	bool Add(wchar_t name[], unsigned short length);
-	void Remove(PUNICODE_STRING name);
+	bool Add(const wchar_t name[], const unsigned short length);
+	void Remove(const UNICODE_STRING* name);
 
-	bool IsInList(PUNICODE_STRING name) const;
+	bool IsInList(const UNICODE_STRING* name);
 
 private:
 	LIST_ENTRY head_;

@@ -137,7 +137,7 @@ void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 
 	if (create_info && create_info->FileOpenNameAvailable)
 	{
-		if (g_blocked_images_list->IsInList(const_cast<PUNICODE_STRING>(create_info->ImageFileName)))
+		if (g_blocked_images_list->IsInList(create_info->ImageFileName))
 		{
 			KdPrint(("[*] Blocking process %d with image %wZ from being created.\n", process_id, create_info->ImageFileName));
 			create_info->CreationStatus = STATUS_ACCESS_DENIED;

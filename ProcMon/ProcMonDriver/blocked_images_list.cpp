@@ -17,7 +17,7 @@ BlockedImagesList::~BlockedImagesList()
 	}
 }
 
-bool BlockedImagesList::Add(wchar_t name[], unsigned short length)
+bool BlockedImagesList::Add(const wchar_t name[], const unsigned short length)
 {
 	AutoLock lock(mutex_);
 
@@ -46,7 +46,7 @@ bool BlockedImagesList::Add(wchar_t name[], unsigned short length)
 	return true;
 }
 
-void BlockedImagesList::Remove(PUNICODE_STRING name)
+void BlockedImagesList::Remove(const UNICODE_STRING* name)
 {
 	AutoLock lock(mutex_);
 
@@ -79,7 +79,7 @@ void BlockedImagesList::Remove(PUNICODE_STRING name)
 	}
 }
 
-bool BlockedImagesList::IsInList(PUNICODE_STRING name) const
+bool BlockedImagesList::IsInList(const UNICODE_STRING* name)
 {
 	AutoLock lock(mutex_);
 
