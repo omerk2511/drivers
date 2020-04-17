@@ -208,14 +208,22 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="blocked_images_list.cpp" />
     <ClCompile Include="fast_mutex.cpp" />
+    <ClCompile Include="ioctl_handlers.cpp" />
+    <ClCompile Include="irp_handler.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="auto_lock.h" />
+    <ClInclude Include="blocked_image.h" />
+    <ClInclude Include="blocked_images_list.h" />
     <ClInclude Include="config.h" />
-    <ClInclude Include="definitions.h" />
+    <ClInclude Include="delete.h" />
     <ClInclude Include="fast_mutex.h" />
+    <ClInclude Include="ioctl_handlers.h" />
+    <ClInclude Include="irp_handler.h" />
+    <ClInclude Include="new.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

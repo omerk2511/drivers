@@ -1,8 +1,10 @@
 #include <ntddk.h>
 
 #include "config.h"
-#include "definitions.h"
-#include "auto_lock.h"
+#include "new.h"
+#include "delete.h"
+#include "blocked_images_list.h"
+#include "blocked_image.h"
 #include "irp_handler.h"
 #include "ioctl_handlers.h"
 
@@ -13,7 +15,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP);
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 
-Globals globals;
+BlockedImagesList* g_blocked_images_list;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 {
@@ -67,8 +69,17 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		return status;
 	}
 
-	InitializeListHead(&globals.blocked_images_list_head);
-	globals.blocked_images_list_mutex.Init();
+	g_blocked_images_list = new (PagedPool, config::kDriverTag) BlockedImagesList();
+
+	if (!g_blocked_images_list)
+	{
+		::IoDeleteDevice(device_object);
+		::IoDeleteSymbolicLink(&symbolic_link);
+		::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
+
+		KdPrint(("[-] Failed to create a blocked images list.\n"));
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
 
 	KdPrint(("[+] Loaded ProcMon successfully.\n"));
 	return STATUS_SUCCESS;
@@ -84,13 +95,7 @@ void ProcMonUnload(PDRIVER_OBJECT driver_object)
 
 	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
 
-	while (!IsListEmpty(&globals.blocked_images_list_head))
-	{
-		auto entry = RemoveTailList(&globals.blocked_images_list_head);
-		BlockedImage* blocked_image = CONTAINING_RECORD(entry, BlockedImage, entry);
-
-		ExFreePool(blocked_image);
-	}
+	delete g_blocked_images_list;
 
 	KdPrint(("[+] Unloaded ProcMon successfully.\n"));
 }
@@ -112,7 +117,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 	{
 	case IOCTL_PROCMON_BLOCK_IMAGE:
 	{
-		ioctl_handlers::BlockImage(irp_handler, globals);
+		ioctl_handlers::BlockImage(irp_handler, g_blocked_images_list);
 		break;
 	}
 
@@ -128,40 +133,11 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
 {
-	UNREFERENCED_PARAMETER(process_id);
+	UNREFERENCED_PARAMETER(process_id); // TODO: check if necessary
 
 	if (create_info && create_info->FileOpenNameAvailable)
 	{
-		AutoLock lock(globals.blocked_images_list_mutex);
-
-		LIST_ENTRY* head = &globals.blocked_images_list_head;
-		LIST_ENTRY* current = head->Flink;
-
-		bool should_be_blocked = false;
-
-		while (current != head)
-		{
-			BlockedImage* blocked_image = CONTAINING_RECORD(current, BlockedImage, entry);
-
-			UNICODE_STRING blocked_image_name;
-			::RtlInitUnicodeString(&blocked_image_name, blocked_image->image_name);
-
-			long equal = ::RtlCompareUnicodeString(
-				&blocked_image_name,
-				create_info->ImageFileName,
-				false
-			);
-
-			if (equal == 0)
-			{
-				should_be_blocked = true;
-				break;
-			}
-
-			current = current->Flink;
-		}
-
-		if (should_be_blocked)
+		if (g_blocked_images_list->IsInList(const_cast<PUNICODE_STRING>(create_info->ImageFileName)))
 		{
 			KdPrint(("[*] Blocking process %d with image %wZ from being created.\n", process_id, create_info->ImageFileName));
 			create_info->CreationStatus = STATUS_ACCESS_DENIED;

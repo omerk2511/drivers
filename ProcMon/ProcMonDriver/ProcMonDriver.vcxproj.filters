@@ -25,18 +25,42 @@
     <ClCompile Include="fast_mutex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="irp_handler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ioctl_handlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="blocked_images_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="definitions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="fast_mutex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="auto_lock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="irp_handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ioctl_handlers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="blocked_images_list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="blocked_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="new.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="delete.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
