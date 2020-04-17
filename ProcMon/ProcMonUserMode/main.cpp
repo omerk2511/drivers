@@ -6,9 +6,9 @@
 
 int main(int argc, char* argv[])
 {
-	if (argc != 2)
+	if (argc != 3 || (std::string(argv[1]) != "-b" && std::string(argv[1]) != "-u"))
 	{
-		std::cout << "Usage: " << argv[0] << " [image]" << std::endl;
+		std::cout << "Usage: " << argv[0] << " [-b | -u] image" << std::endl;
 		return 1;
 	}
 
@@ -28,27 +28,53 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	std::string image_name(argv[1]);
+	std::string image_name(argv[2]);
 	std::wstring u_image_name(image_name.begin(), image_name.end());
 
-	bool succeeded = ::DeviceIoControl(
-		device_handle,
-		IOCTL_PROCMON_BLOCK_IMAGE,
-		static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
-		static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
-		nullptr,
-		0,
-		nullptr,
-		nullptr
-	);
-
-	if (!succeeded)
+	if (std::string(argv[1]) == "-b")
 	{
-		std::cout << "[-] Unable to add the image to the blocked images list." << std::endl;
-		return 1;
+		bool succeeded = ::DeviceIoControl(
+			device_handle,
+			IOCTL_PROCMON_BLOCK_IMAGE,
+			static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
+			static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
+			nullptr,
+			0,
+			nullptr,
+			nullptr
+		);
+
+		if (!succeeded)
+		{
+			std::cout << "[-] Unable to add the image to the blocked images list." << std::endl;
+			return 1;
+		}
+
+		std::cout << "[+] Added image " << argv[2] << " to the blocked images list." << std::endl;
+	}
+	else
+	{
+		bool succeeded = ::DeviceIoControl(
+			device_handle,
+			IOCTL_PROCMON_UNBLOCK_IMAGE,
+			static_cast<LPVOID>(const_cast<wchar_t*>(u_image_name.c_str())),
+			static_cast<DWORD>(u_image_name.size() * sizeof(wchar_t)),
+			nullptr,
+			0,
+			nullptr,
+			nullptr
+		);
+
+		if (!succeeded)
+		{
+			std::cout << "[-] Unable to remove the image from the blocked images list." << std::endl;
+			return 1;
+		}
+
+		std::cout << "[+] Removed image " << argv[2] << " from the blocked images list." << std::endl;
 	}
 
-	std::cout << "[+] Added image " << argv[1] << " to the blocked images list." << std::endl;
-
 	::CloseHandle(device_handle);
+
+	return 0;
 }

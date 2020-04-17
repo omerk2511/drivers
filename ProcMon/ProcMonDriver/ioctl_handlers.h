@@ -11,4 +11,5 @@
 namespace ioctl_handlers
 {
 	void BlockImage(IrpHandler& irp_handler, BlockedImagesList* blocked_images_list);
+	void UnblockImage(IrpHandler& irp_handler, BlockedImagesList* blocked_images_list);
 }

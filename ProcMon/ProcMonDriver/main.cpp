@@ -121,6 +121,12 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP irp)
 		break;
 	}
 
+	case IOCTL_PROCMON_UNBLOCK_IMAGE:
+	{
+		ioctl_handlers::UnblockImage(irp_handler, g_blocked_images_list);
+		break;
+	}
+
 	default:
 	{
 		irp_handler.set_status(STATUS_INVALID_DEVICE_REQUEST);
