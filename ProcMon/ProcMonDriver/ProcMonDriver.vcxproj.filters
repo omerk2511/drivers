@@ -37,6 +37,9 @@
     <ClCompile Include="driver_context.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="process_create_notification.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h">
@@ -67,6 +70,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="driver_context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="process_create_notification.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,6 +4,7 @@
 #include "new.h"
 #include "delete.h"
 #include "driver_context.h"
+#include "process_create_notification.h"
 #include "blocked_images_list.h"
 #include "blocked_image.h"
 #include "irp_handler.h"
@@ -17,6 +18,7 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP);
 void ProcMonProcessNotify(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 
 DriverContext* g_driver_context;
+ProcessCreateNotification* g_process_create_notification;
 BlockedImagesList* g_blocked_images_list;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
@@ -31,14 +33,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 		g_driver_context = new (PagedPool, config::kDriverTag) DriverContext(driver_object);
 		g_blocked_images_list = new (PagedPool, config::kDriverTag) BlockedImagesList();
-
-		NTSTATUS status = ::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, FALSE);
-
-		if (!NT_SUCCESS(status))
-		{
-			KdPrint(("[-] Failed to set a process notify routine.\n"));
-			return status;
-		}
+		g_process_create_notification = new (PagedPool, config::kDriverTag) ProcessCreateNotification(ProcMonProcessNotify);
 
 		KdPrint(("[+] Loaded ProcMon successfully.\n"));
 		return STATUS_SUCCESS;
@@ -50,11 +45,10 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 	}
 }
 
-void ProcMonUnload(PDRIVER_OBJECT driver_object)
+void ProcMonUnload(PDRIVER_OBJECT)
 {
-	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
-
 	delete g_driver_context;
+	delete g_process_create_notification;
 	delete g_blocked_images_list;
 
 	KdPrint(("[+] Unloaded ProcMon successfully.\n"));

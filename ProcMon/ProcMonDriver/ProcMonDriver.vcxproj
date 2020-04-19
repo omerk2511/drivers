@@ -214,6 +214,7 @@
     <ClCompile Include="ioctl_handlers.cpp" />
     <ClCompile Include="irp_handler.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="process_create_notification.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="auto_lock.h" />
@@ -226,6 +227,7 @@
     <ClInclude Include="ioctl_handlers.h" />
     <ClInclude Include="irp_handler.h" />
     <ClInclude Include="new.h" />
+    <ClInclude Include="process_create_notification.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
