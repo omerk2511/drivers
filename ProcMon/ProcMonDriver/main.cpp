@@ -3,6 +3,7 @@
 #include "config.h"
 #include "new.h"
 #include "delete.h"
+#include "driver_context.h"
 #include "blocked_images_list.h"
 #include "blocked_image.h"
 #include "irp_handler.h"
@@ -15,86 +16,45 @@ NTSTATUS ProcMonDeviceControl(PDEVICE_OBJECT, PIRP);
 
 void ProcMonProcessNotify(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 
+DriverContext* g_driver_context;
 BlockedImagesList* g_blocked_images_list;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 {
-	driver_object->DriverUnload = ProcMonUnload;
-
-	driver_object->MajorFunction[IRP_MJ_CREATE] = ProcMonCreateClose;
-	driver_object->MajorFunction[IRP_MJ_CLOSE] = ProcMonCreateClose;
-	driver_object->MajorFunction[IRP_MJ_DEVICE_CONTROL] = ProcMonDeviceControl;
-
-	PDEVICE_OBJECT device_object;
-
-	UNICODE_STRING device_name;
-	::RtlInitUnicodeString(&device_name, config::kDeviceName);
-
-	auto status = ::IoCreateDevice(
-		driver_object,
-		0,
-		&device_name,
-		FILE_DEVICE_UNKNOWN,
-		0,
-		FALSE,
-		&device_object
-	);
-
-	if (!NT_SUCCESS(status))
+	__try
 	{
-		KdPrint(("[-] Failed to create a device object.\n"));
-		return status;
+		driver_object->DriverUnload = ProcMonUnload;
+
+		driver_object->MajorFunction[IRP_MJ_CREATE] = ProcMonCreateClose;
+		driver_object->MajorFunction[IRP_MJ_CLOSE] = ProcMonCreateClose;
+		driver_object->MajorFunction[IRP_MJ_DEVICE_CONTROL] = ProcMonDeviceControl;
+
+		g_driver_context = new (PagedPool, config::kDriverTag) DriverContext(driver_object);
+		g_blocked_images_list = new (PagedPool, config::kDriverTag) BlockedImagesList();
+
+		NTSTATUS status = ::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, FALSE);
+
+		if (!NT_SUCCESS(status))
+		{
+			KdPrint(("[-] Failed to set a process notify routine.\n"));
+			return status;
+		}
+
+		KdPrint(("[+] Loaded ProcMon successfully.\n"));
+		return STATUS_SUCCESS;
 	}
-
-	UNICODE_STRING symbolic_link;
-	::RtlInitUnicodeString(&symbolic_link, config::kSymbolicLink);
-
-	status = ::IoCreateSymbolicLink(&symbolic_link,	&device_name);
-
-	if (!NT_SUCCESS(status))
+	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		::IoDeleteDevice(device_object);
-		KdPrint(("[-] Failed to create a symbolic link.\n"));
-		return status;
+		KdPrint(("[-] Caught exception %d.\n", ::GetExceptionCode()));
+		return STATUS_FAILED_DRIVER_ENTRY;
 	}
-
-	status = ::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, FALSE);
-
-	if (!NT_SUCCESS(status))
-	{
-		::IoDeleteDevice(device_object);
-		::IoDeleteSymbolicLink(&symbolic_link);
-
-		KdPrint(("[-] Failed to set a process notify routine.\n"));
-		return status;
-	}
-
-	g_blocked_images_list = new (PagedPool, config::kDriverTag) BlockedImagesList();
-
-	if (!g_blocked_images_list)
-	{
-		::IoDeleteDevice(device_object);
-		::IoDeleteSymbolicLink(&symbolic_link);
-		::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
-
-		KdPrint(("[-] Failed to create a blocked images list.\n"));
-		return STATUS_INSUFFICIENT_RESOURCES;
-	}
-
-	KdPrint(("[+] Loaded ProcMon successfully.\n"));
-	return STATUS_SUCCESS;
 }
 
 void ProcMonUnload(PDRIVER_OBJECT driver_object)
 {
-	UNICODE_STRING symbolic_link;
-	::RtlInitUnicodeString(&symbolic_link, config::kSymbolicLink);
-
-	::IoDeleteSymbolicLink(&symbolic_link);
-	::IoDeleteDevice(driver_object->DeviceObject);
-
 	::PsSetCreateProcessNotifyRoutineEx(ProcMonProcessNotify, TRUE);
 
+	delete g_driver_context;
 	delete g_blocked_images_list;
 
 	KdPrint(("[+] Unloaded ProcMon successfully.\n"));

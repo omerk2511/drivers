@@ -209,6 +209,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="blocked_images_list.cpp" />
+    <ClCompile Include="driver_context.cpp" />
     <ClCompile Include="fast_mutex.cpp" />
     <ClCompile Include="ioctl_handlers.cpp" />
     <ClCompile Include="irp_handler.cpp" />
@@ -220,6 +221,7 @@
     <ClInclude Include="blocked_images_list.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="delete.h" />
+    <ClInclude Include="driver_context.h" />
     <ClInclude Include="fast_mutex.h" />
     <ClInclude Include="ioctl_handlers.h" />
     <ClInclude Include="irp_handler.h" />
