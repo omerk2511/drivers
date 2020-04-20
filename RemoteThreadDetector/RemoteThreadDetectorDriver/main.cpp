@@ -1,4 +1,4 @@
-#include <ntddk.h>
+#include <ntifs.h>
 
 #include "config.h"
 
@@ -6,6 +6,8 @@ void DriverUnload(PDRIVER_OBJECT);
 
 NTSTATUS CreateCloseDispatch(PDEVICE_OBJECT, PIRP);
 NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP);
+
+void ThreadNotifyRoutine(HANDLE, HANDLE, BOOLEAN);
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 {
@@ -20,7 +22,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 	PDEVICE_OBJECT device_object;
 
-	NTSTATUS status = ::IoCreateDevice(
+	auto status = ::IoCreateDevice(
 		driver_object,
 		0,
 		&device_name,
@@ -50,6 +52,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		::KdPrint(("[-] Failed to create a symbolic link.\n"));
 		return status;
 	}
+
+	::PsSetCreateThreadNotifyRoutine(nullptr);
 
 	::KdPrint(("[+] Loaded RemoteThreadDetector successfully.\n"));
 
@@ -85,4 +89,29 @@ NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP irp)
 	::IoCompleteRequest(irp, IO_NO_INCREMENT);
 
 	return STATUS_SUCCESS;
+}
+
+void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
+{
+	if (create)
+	{
+		PETHREAD thread;
+		auto status = ::PsLookupThreadByThreadId(thread_id, &thread);
+
+		if (!NT_SUCCESS(status))
+		{
+			KdPrint(("[-] Could not get thread %d's ETHREAD pointer.\n", thread_id));
+			return;
+		}
+
+		HANDLE actual_process_id = ::PsGetThreadProcessId(thread);
+
+		if (actual_process_id != process_id)
+		{
+			::KdPrint(("[*] Thread %d in process %d was created remotely from process %d.\n",
+				thread_id, actual_process_id, process_id));
+		}
+
+		::ObDereferenceObject(thread);
+	}
 }
