@@ -7,6 +7,7 @@ void DriverUnload(PDRIVER_OBJECT);
 NTSTATUS CreateCloseDispatch(PDEVICE_OBJECT, PIRP);
 NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP);
 
+void ProcessNotifyRoutine(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 void ThreadNotifyRoutine(HANDLE, HANDLE, BOOLEAN);
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
@@ -53,7 +54,26 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		return status;
 	}
 
-	::PsSetCreateThreadNotifyRoutine(nullptr);
+	status = ::PsSetCreateProcessNotifyRoutineEx(ProcessNotifyRoutine, FALSE);
+
+	if (!NT_SUCCESS(status))
+	{
+		::IoDeleteDevice(device_object);
+		::IoDeleteSymbolicLink(&symbolic_link);
+		::KdPrint(("[-] Failed to create a process notify routine.\n"));
+		return status;
+	}
+
+	status = ::PsSetCreateThreadNotifyRoutine(ThreadNotifyRoutine);
+
+	if (!NT_SUCCESS(status))
+	{
+		::IoDeleteDevice(device_object);
+		::IoDeleteSymbolicLink(&symbolic_link);
+		::PsSetCreateProcessNotifyRoutineEx(ProcessNotifyRoutine, TRUE);
+		::KdPrint(("[-] Failed to create a thread notify routine.\n"));
+		return status;
+	}
 
 	::KdPrint(("[+] Loaded RemoteThreadDetector successfully.\n"));
 
@@ -89,6 +109,14 @@ NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP irp)
 	::IoCompleteRequest(irp, IO_NO_INCREMENT);
 
 	return STATUS_SUCCESS;
+}
+
+void ProcessNotifyRoutine(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO create_info)
+{
+	if (create_info)
+	{
+		// save in cache
+	}
 }
 
 void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
