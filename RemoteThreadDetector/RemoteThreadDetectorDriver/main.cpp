@@ -139,18 +139,9 @@ void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
 {
 	if (create)
 	{
-		PETHREAD thread;
-		auto status = ::PsLookupThreadByThreadId(thread_id, &thread);
+		HANDLE creator_process_id = ::PsGetCurrentProcessId();
 
-		if (!NT_SUCCESS(status))
-		{
-			KdPrint(("[-] Could not get thread %d's ETHREAD pointer.\n", thread_id));
-			return;
-		}
-
-		HANDLE actual_process_id = ::PsGetThreadProcessId(thread);
-
-		if (actual_process_id != process_id) // should also check the cache
+		if (process_id != creator_process_id) // should also check the cache
 		{
 			auto entry = static_cast<RemoteThreadCreationEntry*>(
 				::ExAllocatePoolWithTag(
@@ -167,21 +158,14 @@ void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
 			}
 
 			entry->remote_thread_creation.thread_id = thread_id;
-			entry->remote_thread_creation.process_id = actual_process_id;
-			entry->remote_thread_creation.creator_process_id = process_id;
+			entry->remote_thread_creation.process_id = process_id;
+			entry->remote_thread_creation.creator_process_id = creator_process_id;
 
 			// race condition, should use a mutex / executive resource
-			::AppendTailList(&g_remote_thread_creations_list_head, &entry->list_entry);
+			::InsertTailList(&g_remote_thread_creations_list_head, &entry->list_entry);
 
 			::KdPrint(("[*] Thread %d in process %d was created remotely from process %d.\n",
-				thread_id, actual_process_id, process_id));
+				thread_id, process_id, creator_process_id));
 		}
-		else
-		{
-			::KdPrint(("[*] Thread %d in process %d was created from process %d.\n",
-				thread_id, actual_process_id, process_id));
-		}
-
-		::ObDereferenceObject(thread);
 	}
 }
