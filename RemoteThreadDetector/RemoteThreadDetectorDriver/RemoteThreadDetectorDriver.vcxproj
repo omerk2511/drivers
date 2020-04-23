@@ -209,7 +209,9 @@
   <ItemGroup>
     <ClInclude Include="auto_lock.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="delete.h" />
     <ClInclude Include="fast_mutex.h" />
+    <ClInclude Include="new.h" />
     <ClInclude Include="remote_thread_creation.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

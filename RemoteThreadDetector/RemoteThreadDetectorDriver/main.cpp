@@ -1,6 +1,8 @@
 #include <ntifs.h>
 
 #include "config.h"
+#include "new.h"
+#include "delete.h"
 #include "remote_thread_creation.h"
 
 void DriverUnload(PDRIVER_OBJECT);
@@ -101,7 +103,7 @@ void DriverUnload(PDRIVER_OBJECT driver_object)
 		auto entry = ::RemoveTailList(&g_remote_thread_creations_list_head);
 		auto remote_thread_creation_entry = CONTAINING_RECORD(entry, RemoteThreadCreationEntry, list_entry);
 
-		::ExFreePool(remote_thread_creation_entry);
+		delete remote_thread_creation_entry;
 	}
 
 	::KdPrint(("[+] Unloaded RemoteThreadDetector successfully.\n"));
@@ -143,13 +145,8 @@ void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
 
 		if (process_id != creator_process_id) // should also check the cache
 		{
-			auto entry = static_cast<RemoteThreadCreationEntry*>(
-				::ExAllocatePoolWithTag(
-					PagedPool,
-					sizeof(RemoteThreadCreationEntry),
-					config::kDriverTag
-				)
-			);
+			RemoteThreadCreationEntry* entry =
+				new (PagedPool, config::kDriverTag) RemoteThreadCreationEntry();
 
 			if (!entry)
 			{
