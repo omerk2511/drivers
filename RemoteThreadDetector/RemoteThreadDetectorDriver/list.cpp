@@ -18,7 +18,7 @@ List::~List()
 
 void List::Insert(LIST_ENTRY* entry)
 {
-	if (count_ >= 4096) // move to constant / registry key
+	if (count_ >= 1024) // move to constant / registry key
 	{
 		auto head = ::RemoveHeadList(&head_);
 		delete head;

@@ -147,7 +147,6 @@ void ProcessNotifyRoutine(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO c
 {
 	if (create_info)
 	{
-		::KdPrint(("[*] Process %d was created.\n", process_id));
 		g_new_processes_cache->AddProcess(::HandleToULong(process_id));
 	}
 }
