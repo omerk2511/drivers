@@ -3,7 +3,6 @@
 #include <ntddk.h>
 
 #include "fast_mutex.h"
-#include "auto_lock.h"
 
 class List
 {
@@ -14,12 +13,11 @@ public:
 	void Insert(LIST_ENTRY* entry);
 	void Remove(LIST_ENTRY* entry);
 
-	const LIST_ENTRY* operator->() const
-	{
-		return &head_;
-	}
+	LIST_ENTRY* get_head();
+	FastMutex& get_mutex();
 
 private:
 	LIST_ENTRY head_;
 	FastMutex mutex_;
+	int count_;
 };
