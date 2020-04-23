@@ -203,9 +203,12 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="delete.cpp" />
     <ClCompile Include="fast_mutex.cpp" />
     <ClCompile Include="list.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="new.cpp" />
+    <ClCompile Include="new_processes_cache.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="auto_lock.h" />
@@ -214,6 +217,7 @@
     <ClInclude Include="fast_mutex.h" />
     <ClInclude Include="list.h" />
     <ClInclude Include="new.h" />
+    <ClInclude Include="new_processes_cache.h" />
     <ClInclude Include="remote_thread_creation.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

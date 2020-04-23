@@ -4,6 +4,7 @@
 #include "new.h"
 #include "delete.h"
 #include "remote_thread_creation.h"
+#include "new_processes_cache.h"
 
 void DriverUnload(PDRIVER_OBJECT);
 
@@ -14,6 +15,7 @@ void ProcessNotifyRoutine(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO);
 void ThreadNotifyRoutine(HANDLE, HANDLE, BOOLEAN);
 
 LIST_ENTRY g_remote_thread_creations_list_head;
+NewProcessesCache* g_new_processes_cache;
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 {
@@ -82,6 +84,18 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 
 	::InitializeListHead(&g_remote_thread_creations_list_head);
 
+	g_new_processes_cache = new (PagedPool, config::kDriverTag) NewProcessesCache();
+
+	if (!g_new_processes_cache)
+	{
+		::IoDeleteDevice(device_object);
+		::IoDeleteSymbolicLink(&symbolic_link);
+		::PsSetCreateProcessNotifyRoutineEx(ProcessNotifyRoutine, TRUE);
+		::PsRemoveCreateThreadNotifyRoutine(ThreadNotifyRoutine);
+		::KdPrint(("[-] Failed to create a new processes cache.\n"));
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
+
 	::KdPrint(("[+] Loaded RemoteThreadDetector successfully.\n"));
 
 	return STATUS_SUCCESS;
@@ -129,11 +143,12 @@ NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP irp)
 	return STATUS_SUCCESS;
 }
 
-void ProcessNotifyRoutine(PEPROCESS, HANDLE, PPS_CREATE_NOTIFY_INFO create_info)
+void ProcessNotifyRoutine(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
 {
 	if (create_info)
 	{
-		// save in cache
+		::KdPrint(("[*] Process %d was created.\n", process_id));
+		g_new_processes_cache->AddProcess(::HandleToULong(process_id));
 	}
 }
 
@@ -143,20 +158,22 @@ void ThreadNotifyRoutine(HANDLE process_id, HANDLE thread_id, BOOLEAN create)
 	{
 		HANDLE creator_process_id = ::PsGetCurrentProcessId();
 
-		if (process_id != creator_process_id) // should also check the cache
+		if (process_id != creator_process_id &&
+			::HandleToULong(creator_process_id) != 4 &&
+			!g_new_processes_cache->IsNewlyCreated(::HandleToULong(process_id)))
 		{
 			RemoteThreadCreationEntry* entry =
 				new (PagedPool, config::kDriverTag) RemoteThreadCreationEntry();
 
 			if (!entry)
 			{
-				KdPrint(("[-] Failed to log a remote thread creation detected due to insufficient memory.\n"));
+				::KdPrint(("[-] Failed to log a remote thread creation detected due to insufficient memory.\n"));
 				return;
 			}
 
-			entry->remote_thread_creation.thread_id = thread_id;
-			entry->remote_thread_creation.process_id = process_id;
-			entry->remote_thread_creation.creator_process_id = creator_process_id;
+			entry->remote_thread_creation.thread_id = ::HandleToULong(thread_id);
+			entry->remote_thread_creation.process_id = ::HandleToULong(process_id);
+			entry->remote_thread_creation.creator_process_id = ::HandleToULong(creator_process_id);
 
 			// race condition, should use a mutex / executive resource
 			::InsertTailList(&g_remote_thread_creations_list_head, &entry->list_entry);

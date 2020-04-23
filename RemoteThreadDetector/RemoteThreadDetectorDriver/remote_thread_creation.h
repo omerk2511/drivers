@@ -4,9 +4,9 @@
 
 struct RemoteThreadCreation
 {
-	HANDLE thread_id;
-	HANDLE process_id;
-	HANDLE creator_process_id;
+	ULONG thread_id;
+	ULONG process_id;
+	ULONG creator_process_id;
 };
 
 struct RemoteThreadCreationEntry
