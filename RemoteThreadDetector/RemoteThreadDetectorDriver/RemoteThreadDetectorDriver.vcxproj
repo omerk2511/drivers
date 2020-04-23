@@ -204,6 +204,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fast_mutex.cpp" />
+    <ClCompile Include="list.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -211,6 +212,7 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="delete.h" />
     <ClInclude Include="fast_mutex.h" />
+    <ClInclude Include="list.h" />
     <ClInclude Include="new.h" />
     <ClInclude Include="remote_thread_creation.h" />
   </ItemGroup>

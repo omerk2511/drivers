@@ -1,4 +1,4 @@
-#include <ntifs.h>
+#include <ntddk.h>
 
 #include "config.h"
 #include "new.h"
