@@ -3,6 +3,7 @@
 #include "config.h"
 #include "new.h"
 #include "delete.h"
+#include "irp_handler.h"
 #include "remote_thread_creation.h"
 #include "new_processes_cache.h"
 
@@ -39,6 +40,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object, PUNICODE_STRING)
 		true,
 		&device_object
 	);
+
+	device_object->Flags |= DO_DIRECT_IO;
 
 	if (!NT_SUCCESS(status))
 	{
@@ -125,22 +128,14 @@ void DriverUnload(PDRIVER_OBJECT driver_object)
 
 NTSTATUS CreateCloseDispatch(PDEVICE_OBJECT, PIRP irp)
 {
-	irp->IoStatus.Status = STATUS_SUCCESS;
-	irp->IoStatus.Information = 0;
-
-	::IoCompleteRequest(irp, IO_NO_INCREMENT);
-
-	return STATUS_SUCCESS;
+	IrpHandler irp_handler(irp);
+	return irp_handler.get_status();
 }
 
 NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP irp)
 {
-	irp->IoStatus.Status = STATUS_SUCCESS;
-	irp->IoStatus.Information = 0;
-
-	::IoCompleteRequest(irp, IO_NO_INCREMENT);
-
-	return STATUS_SUCCESS;
+	IrpHandler irp_handler(irp);
+	return irp_handler.get_status();
 }
 
 void ProcessNotifyRoutine(PEPROCESS, HANDLE process_id, PPS_CREATE_NOTIFY_INFO create_info)
