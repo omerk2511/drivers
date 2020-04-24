@@ -135,6 +135,35 @@ NTSTATUS CreateCloseDispatch(PDEVICE_OBJECT, PIRP irp)
 NTSTATUS ReadDispatch(PDEVICE_OBJECT, PIRP irp)
 {
 	IrpHandler irp_handler(irp);
+
+	auto stack = irp_handler.get_stack_location();
+	auto length = stack->Parameters.Read.Length;
+
+	auto buffer = ::MmGetSystemAddressForMdlSafe(irp->MdlAddress, NormalPagePriority);
+
+	if (!buffer)
+	{
+		irp_handler.set_status(STATUS_INSUFFICIENT_RESOURCES);
+		return irp_handler.get_status();
+	}
+
+	auto count = 0;
+
+	while (count < length)
+	{
+		auto entry = ::RemoveHeadList(&g_remote_thread_creations_list_head);
+		auto remote_thread_creation = CONTAINING_RECORD(entry, RemoteThreadCreationEntry, list_entry);
+
+		::memcpy(static_cast<char*>(buffer) + count,
+			&remote_thread_creation->remote_thread_creation,
+			sizeof(RemoteThreadCreation)
+		);
+
+		delete remote_thread_creation;
+		count += sizeof(RemoteThreadCreation);
+	}
+
+	irp_handler.set_information(count);
 	return irp_handler.get_status();
 }
 
